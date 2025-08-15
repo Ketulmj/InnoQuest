@@ -1,37 +1,37 @@
-import type { User } from '../models/user.js';
+import db from '../db/index.js'
+import { eq } from 'drizzle-orm';
+import userSchema from '../db/schema/user.js';
 
-export async function fetchUserFromDb(email: string): Promise<User> {
-    // fetch user from database
+export async function fetchUserFromDb(email: string): Promise<any> {
+    try {
+        // fetch user from database
+        const user = await db.select().from(userSchema).where(eq(userSchema.email, email));
+        // console.log(user)
 
-    // simulation of database access
-    return new Promise(( resolve, reject ) => {
-        if (email === "abc@gmail.com") {
-            const user = { 
-                id: "1", 
-                email: "abc@gmail.com", 
-                password: '$2b$10$aqSgr0Dmi8gn71rDyE16xO/miwxnLzQaW1mZhLdKJSiEFdftNdmN.', 
-                name: "john",
-                avatar: "base64_string_of_image" 
-            };
-            setTimeout(() => resolve(user), 500);
-        } else {
-            return reject({error: "error while fetching data"});
-        }
-    });
+        if(user.length === 0) 
+            return null;
+        return user[0];
+
+    } catch (e) {
+        console.log("Error fetching user : ", e)
+        throw new Error();
+    }
 }
 
-export async function createUserIntoDb(user : any) {
+export async function createUserIntoDb(user: any): Promise<any> {
+    try {
     // insert user into database
+    const newUser = await db.insert(userSchema).values({
+        name: user.name,
+        email: user.email,
+        password: user.password,
+        role: user.role,
+        avatar: user.avatar
+    })
+    return newUser;
 
-    // const newUser = {
-    //     user.email,
-    //     password,
-    //     name,
-    //     avatar
-    // }
-
-    // simulation of database access
-    setTimeout(() => {
-
-    }, 500);
+    } catch (e) {
+        console.log("Error fetching user : ", e)
+        throw new Error();
+    }
 }

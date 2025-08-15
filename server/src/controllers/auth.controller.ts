@@ -9,37 +9,31 @@ import { fetchUserFromDb, createUserIntoDb } from '../services/user.service.js';
 export const handleSignIn = async (req: Request, res: Response): Promise<Response> => {
     try {
         const { email, password } = req.body;
-        // if (!email || !password)
-        //     return res.status(400).send({"message": "Email & Password Required!"});
+        if (!email || !password)
+            return res.status(400).send({"message": "Email & Password Required!"});
 
         const user = await fetchUserFromDb(email);
-
-        if (!user) {
+        if (user == null) {
             return res.status(400).send({ "message": "User Not Exists! Please Sign Up!" })
         }
 
-        // hash the password of a request
-        const saltRounds = bcrypt.genSaltSync(10);
-        const hashedPassword = bcrypt.hashSync(password, saltRounds);
-        console.log(hashedPassword)
-        // payload to be 
-
         // compare passwords
-        if (bcrypt.compareSync(hashedPassword, user.password)) {
+        if (bcrypt.compareSync(password, user.password)) {
             const payload = {
-                email: user.email,
                 name: user.name,
+                email: user.email,
+                role: user.role,
                 avatar: user.avatar
             }
 
-            const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '1d' })
-
-            return res.status(200).send({ "message": "Login Successful" })
-                .cookie('token', token, {
+            const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '1d' })            
+            
+            res.cookie('token', token, {
                     expires: new Date(Date.now() + 1000 * 60 * 60 * 24)
                     // secure: true,
                     // httpOnly: true,
-                })
+            })
+            return res.status(200).send({ "message": "Login Successful" })
         } else {
             return res.status(400).send({ "message": "Invalid Credentials" });
         }
@@ -51,35 +45,41 @@ export const handleSignIn = async (req: Request, res: Response): Promise<Respons
 
 export const handleSignUp = async (req: Request, res: Response): Promise<Response> => {
     try {
-        const { email, password, name, avatar } = req.body;
-        // if (!email || !password)
-        //     res.status(400).send({"message": "Email & Password Required!"});
+        const { email, password, name, avatar, role } = req.body;
+        if (!email || !password || !name || !role)
+            return res.status(400).send({"message": "All Fields Required!"});
 
         const user = await fetchUserFromDb(email);
-        if (user) {
+
+        if (user != null) {
             return res.status(400).send({ "message": "User Already Exists! Please Sign In!" })
         }
 
         const saltRounds = bcrypt.genSaltSync(10);
         const hashedPassword = bcrypt.hashSync(password, saltRounds);
 
-        await createUserIntoDb({ email, password: hashedPassword, name, avatar });
+        const newUser = await createUserIntoDb({ email, password: hashedPassword, name, role, avatar });
+
+        if(newUser.rowCount === 0) {
+            return res.status(500).send({ "message": "Internal Server Error! Please try again later!"});
+        }
 
         const payload = {
             email,
             name,
+            role,
             avatar
         }
         const token = jwt.sign(payload, 'secret_key', {
             expiresIn: '1d'
         })
 
-        return res.status(200).send({ "message": "SignUp Successful" })
-            .cookie('auth_token', token, {
+        res.cookie('auth_token', token, {
                 expires: new Date(Date.now() + 1000 * 60 * 60 * 24)
                 // secure: true,
                 // httpOnly: true,
-            })
+        })
+        return res.status(200).send({ "message": "SignUp Successful" })
 
     } catch (e) {
         console.error(e);
